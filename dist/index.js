@@ -1,5 +1,5 @@
 import require$$0, { useState, useRef, useEffect, useCallback, useMemo, createContext, useContext } from "react";
-import { PixelRatio, Dimensions, Platform, View, FlatList, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, PanResponder, Modal, Share } from "react-native";
+import { PixelRatio, Dimensions, Platform, View, FlatList, Text, StyleSheet, TouchableOpacity, ScrollView, PanResponder, Modal, Share } from "react-native";
 var jsxRuntime = { exports: {} };
 var reactJsxRuntime_production = {};
 /**
@@ -820,19 +820,89 @@ const DeviceTab = () => {
     typeof v === "object" ? JSON.stringify(v) : String(v)
   ] }, k)) });
 };
+let overlayInstanceCount = 0;
 const DebugOverlay = () => {
+  const [instanceId] = useState(() => ++overlayInstanceCount);
+  useEffect(() => {
+    if (overlayInstanceCount > 1) {
+      console.warn(`DebugOverlay: Multiple instances detected (${overlayInstanceCount}). Only one overlay should be rendered.`);
+    }
+    return () => {
+      overlayInstanceCount--;
+    };
+  }, []);
+  if (instanceId > 1) {
+    return null;
+  }
   const [open, setOpen] = useState(false);
-  const pos = useRef(new Animated.ValueXY({ x: 20, y: 100 })).current;
+  const [position, setPosition] = useState({ x: 20, y: 100 });
+  const isDragging = useRef(false);
+  const dragStartTime = useRef(0);
+  const startPosition = useRef({ x: 20, y: 100 });
+  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+  const fabSize = 56;
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: Animated.event([null, { dx: pos.x, dy: pos.y }], { useNativeDriver: false }),
-      onPanResponderRelease: () => {
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        dragStartTime.current = Date.now();
+        isDragging.current = false;
+        startPosition.current = { x: position.x, y: position.y };
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5) {
+          isDragging.current = true;
+        }
+        if (isDragging.current) {
+          const newX = startPosition.current.x + gestureState.dx;
+          const newY = startPosition.current.y + gestureState.dy;
+          const maxX = screenWidth - fabSize - 10;
+          const maxY = screenHeight - fabSize - 80;
+          const minX = 10;
+          const minY = 40;
+          const constrainedX = Math.max(minX, Math.min(maxX, newX));
+          const constrainedY = Math.max(minY, Math.min(maxY, newY));
+          setPosition({ x: constrainedX, y: constrainedY });
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const dragDuration = Date.now() - dragStartTime.current;
+        const dragDistance = Math.sqrt(gestureState.dx ** 2 + gestureState.dy ** 2);
+        if (dragDuration < 200 && dragDistance < 10) {
+          isDragging.current = false;
+          setOpen(true);
+        } else {
+          setTimeout(() => {
+            isDragging.current = false;
+          }, 100);
+        }
       }
     })
   ).current;
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(jsxRuntimeExports.Fragment, { children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Animated.View, { style: [styles.fab, { transform: [{ translateX: pos.x }, { translateY: pos.y }] }], ...pan.panHandlers, children: /* @__PURE__ */ jsxRuntimeExports.jsx(TouchableOpacity, { onPress: () => setOpen(true), children: /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles.fabText, children: "⚡" }) }) }),
+    /* @__PURE__ */ jsxRuntimeExports.jsx(
+      View,
+      {
+        style: [
+          styles.fab,
+          {
+            left: position.x,
+            top: position.y
+          }
+        ],
+        ...pan.panHandlers,
+        children: /* @__PURE__ */ jsxRuntimeExports.jsx(
+          TouchableOpacity,
+          {
+            onPress: () => !isDragging.current && setOpen(true),
+            activeOpacity: 0.8,
+            style: styles.fabTouchable,
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles.fabText, children: "⚡" })
+          }
+        )
+      }
+    ),
     /* @__PURE__ */ jsxRuntimeExports.jsxs(Modal, { visible: open, animationType: "slide", onRequestClose: () => setOpen(false), children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: styles.header, children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles.title, children: "Debug Overlay" }),
@@ -865,8 +935,36 @@ const Tabs = () => {
   ] });
 };
 const styles = StyleSheet.create({
-  fab: { position: "absolute", zIndex: 9999, backgroundColor: "rgba(0,0,0,0.7)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
-  fabText: { color: "white", fontSize: 18 },
+  fab: {
+    position: "absolute",
+    zIndex: 9999,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    borderWidth: 2,
+    borderColor: "rgba(255,215,0,0.3)"
+  },
+  fabTouchable: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 28
+  },
+  fabText: {
+    color: "#FFD700",
+    fontSize: 24,
+    fontWeight: "bold",
+    textShadowColor: "rgba(0,0,0,0.5)",
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 2
+  },
   header: { paddingTop: 48, paddingHorizontal: 16, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: StyleSheet.hairlineWidth },
   title: { fontSize: 18, fontWeight: "600" },
   close: { color: "#007aff" },
