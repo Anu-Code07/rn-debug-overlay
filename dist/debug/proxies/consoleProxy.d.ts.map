@@ -1,0 +1,1 @@
+{"version":3,"file":"consoleProxy.d.ts","sourceRoot":"","sources":["../../../src/debug/proxies/consoleProxy.ts"],"names":[],"mappings":"AAAA,MAAM,MAAM,YAAY,GAAG,KAAK,GAAG,MAAM,GAAG,OAAO,CAAC;AACpD,MAAM,MAAM,YAAY,GAAG;IAAE,KAAK,EAAE,YAAY,CAAC;IAAC,OAAO,EAAE,GAAG,EAAE,CAAC;IAAC,SAAS,EAAE,MAAM,CAAC;CAAE,CAAC;AACvF,wBAAgB,mBAAmB,CAAC,OAAO,EAAE,CAAC,CAAC,EAAE,YAAY,KAAK,IAAI,cAUrE"}
