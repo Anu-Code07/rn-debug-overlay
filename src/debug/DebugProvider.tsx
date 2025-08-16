@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Platform, Dimensions, PixelRatio } from 'react-native';
 import { RingBuffer } from './store/buffer';
 import { installConsoleProxy, ConsoleEntry } from './proxies/consoleProxy';
@@ -36,13 +36,29 @@ export const DebugProvider = ({ children, axios, capacity = 300, enabled = typeo
   const reqBuf = useRef(new RingBuffer<NetworkEntry>(capacity));
   const [, setTick] = useState(0);
 
+  // Debounced state update to batch multiple rapid log calls
+  const scheduleUpdate = useCallback(() => {
+    setTimeout(() => setTick((t: number) => t + 1), 0);
+  }, []);
+
   useEffect(() => {
     if (!enabled) return;
-    const restoreConsole = installConsoleProxy((e) => { logBuf.current.push(e); setTick((t: number) => t+1); });
-    const restoreFetch = installFetchProxy((e) => { reqBuf.current.push(e); setTick((t: number) => t+1); });
-    const restoreAxios = installAxiosProxy(axios, (e) => { reqBuf.current.push(e); setTick((t: number) => t+1); });
+    
+    const restoreConsole = installConsoleProxy((e) => { 
+      logBuf.current.push(e); 
+      scheduleUpdate();
+    });
+    const restoreFetch = installFetchProxy((e) => { 
+      reqBuf.current.push(e); 
+      scheduleUpdate();
+    });
+    const restoreAxios = installAxiosProxy(axios, (e) => { 
+      reqBuf.current.push(e); 
+      scheduleUpdate();
+    });
+    
     return () => { restoreAxios?.(); restoreFetch(); restoreConsole(); };
-  }, [enabled, axios]);
+  }, [enabled, axios, scheduleUpdate]);
 
   const jsFps = useFps(enabled);
   const loopLagMs = useEventLoopLag(enabled);
@@ -59,8 +75,14 @@ export const DebugProvider = ({ children, axios, capacity = 300, enabled = typeo
     logs: logBuf.current.toArray(),
     requests: reqBuf.current.toArray(),
     jsFps, loopLagMs, device,
-    clearLogs: () => { logBuf.current.clear(); setTick((t: number) => t+1); },
-    clearRequests: () => { reqBuf.current.clear(); setTick((t: number) => t+1); },
+    clearLogs: () => { 
+      logBuf.current.clear(); 
+      setTimeout(() => setTick((t: number) => t + 1), 0);
+    },
+    clearRequests: () => { 
+      reqBuf.current.clear(); 
+      setTimeout(() => setTick((t: number) => t + 1), 0);
+    },
   };
 
   return <DebugContext.Provider value={value}>{children}</DebugContext.Provider>;

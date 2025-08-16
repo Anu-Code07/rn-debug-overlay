@@ -1,1 +1,1 @@
-{"version":3,"file":"axiosProxy.d.ts","sourceRoot":"","sources":["../../../src/debug/proxies/axiosProxy.ts"],"names":[],"mappings":"AAAA,wBAAgB,iBAAiB,CAAC,KAAK,EAAE,GAAG,EAAE,OAAO,EAAE,CAAC,CAAC,EAAE,GAAG,KAAK,IAAI,4BAsBtE"}
+{"version":3,"file":"axiosProxy.d.ts","sourceRoot":"","sources":["../../../src/debug/proxies/axiosProxy.ts"],"names":[],"mappings":"AAAA,wBAAgB,iBAAiB,CAAC,KAAK,EAAE,GAAG,EAAE,OAAO,EAAE,CAAC,CAAC,EAAE,GAAG,KAAK,IAAI,4BA4FtE"}

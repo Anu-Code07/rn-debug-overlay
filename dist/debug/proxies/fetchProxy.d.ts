@@ -11,6 +11,10 @@ export type NetworkEntry = {
     reqBytes?: number;
     resBytes?: number;
     error?: string;
+    requestHeaders?: Record<string, string>;
+    requestBody?: string;
+    responseHeaders?: Record<string, string>;
+    responseBody?: string;
 };
 export declare function installFetchProxy(onEntry: (e: NetworkEntry) => void): () => void;
 //# sourceMappingURL=fetchProxy.d.ts.map

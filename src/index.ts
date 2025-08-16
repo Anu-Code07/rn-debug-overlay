@@ -1,3 +1,4 @@
-export { DebugProvider } from './debug/DebugProvider';
 export { DebugOverlay } from './debug/DebugOverlay';
-export { useDebug } from './debug/DebugProvider';
+export { DebugProvider, useDebug } from './debug/DebugProvider';
+export { installEarlyConsoleProxy } from './debug/proxies/consoleProxy';
+

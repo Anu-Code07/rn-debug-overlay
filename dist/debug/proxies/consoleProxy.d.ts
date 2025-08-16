@@ -4,5 +4,6 @@ export type ConsoleEntry = {
     message: any[];
     timestamp: number;
 };
+export declare function installEarlyConsoleProxy(): void;
 export declare function installConsoleProxy(onEntry: (e: ConsoleEntry) => void): () => void;
 //# sourceMappingURL=consoleProxy.d.ts.map

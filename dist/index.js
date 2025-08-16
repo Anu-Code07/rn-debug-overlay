@@ -1,5 +1,5 @@
-import require$$0, { useState, useRef, useEffect, useMemo, createContext, useContext } from "react";
-import { PixelRatio, Dimensions, Platform, View, FlatList, Text, StyleSheet, Animated, PanResponder, TouchableOpacity, Modal, Share } from "react-native";
+import require$$0, { useState, useRef, useEffect, useCallback, useMemo, createContext, useContext } from "react";
+import { PixelRatio, Dimensions, Platform, View, FlatList, Text, StyleSheet, TouchableOpacity, ScrollView, Animated, PanResponder, Modal, Share } from "react-native";
 var jsxRuntime = { exports: {} };
 var reactJsxRuntime_production = {};
 /**
@@ -336,22 +336,43 @@ class RingBuffer {
     this.data = new Array(this.capacity);
   }
 }
-function installConsoleProxy(onEntry) {
+let earlyBuffer = [];
+let earlyProxyInstalled = false;
+let currentOnEntry = null;
+function installEarlyConsoleProxy() {
+  if (earlyProxyInstalled) return;
+  earlyProxyInstalled = true;
   const original = { log: console.log, warn: console.warn, error: console.error };
   ["log", "warn", "error"].forEach((level) => {
     const orig = original[level];
     console[level] = (...args) => {
-      try {
-        onEntry({ level, message: args, timestamp: Date.now() });
-      } catch {
+      const entry = { level, message: args, timestamp: Date.now() };
+      if (currentOnEntry) {
+        try {
+          currentOnEntry(entry);
+        } catch {
+        }
+      } else {
+        earlyBuffer.push(entry);
       }
       orig.apply(console, args);
     };
   });
+}
+function installConsoleProxy(onEntry) {
+  currentOnEntry = onEntry;
+  earlyBuffer.forEach((entry) => {
+    try {
+      onEntry(entry);
+    } catch {
+    }
+  });
+  earlyBuffer = [];
+  if (!earlyProxyInstalled) {
+    installEarlyConsoleProxy();
+  }
   return () => {
-    console.log = original.log;
-    console.warn = original.warn;
-    console.error = original.error;
+    currentOnEntry = null;
   };
 }
 function installFetchProxy(onEntry) {
@@ -363,28 +384,86 @@ function installFetchProxy(onEntry) {
     const method = ((init == null ? void 0 : init.method) || "GET").toUpperCase();
     const id = Math.random().toString(36).slice(2);
     const startedAt = Date.now();
+    let requestBody = "";
     let reqBytes = 0;
+    let requestHeaders = {};
     try {
+      if (init == null ? void 0 : init.headers) {
+        if (init.headers instanceof Headers) {
+          init.headers.forEach((value, key) => {
+            requestHeaders[key] = value;
+          });
+        } else {
+          requestHeaders = { ...init.headers };
+        }
+      }
       const body = init == null ? void 0 : init.body;
-      if (typeof body === "string") reqBytes = body.length;
-      else if (body && "size" in body) reqBytes = body.size;
+      if (typeof body === "string") {
+        requestBody = body;
+        reqBytes = body.length;
+      } else if (body && "size" in body) {
+        reqBytes = body.size;
+        requestBody = "[Binary Data]";
+      } else if (body) {
+        requestBody = String(body);
+        reqBytes = requestBody.length;
+      }
     } catch {
     }
     try {
       const res = await original(input, init);
       const clone = res.clone();
+      let responseBody = "";
       let resBytes = 0;
+      let responseHeaders = {};
       try {
+        res.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
         const text = await clone.text();
+        responseBody = text;
         resBytes = text.length;
+        try {
+          const json = JSON.parse(text);
+          responseBody = JSON.stringify(json, null, 2);
+        } catch {
+        }
       } catch {
       }
       const endedAt = Date.now();
-      onEntry({ id, type: "fetch", method, url, startedAt, endedAt, status: res.status, ok: res.ok, durationMs: endedAt - startedAt, reqBytes, resBytes });
+      onEntry({
+        id,
+        type: "fetch",
+        method,
+        url,
+        startedAt,
+        endedAt,
+        status: res.status,
+        ok: res.ok,
+        durationMs: endedAt - startedAt,
+        reqBytes,
+        resBytes,
+        requestHeaders,
+        requestBody,
+        responseHeaders,
+        responseBody
+      });
       return res;
     } catch (err) {
       const endedAt = Date.now();
-      onEntry({ id, type: "fetch", method, url, startedAt, endedAt, durationMs: endedAt - startedAt, reqBytes, error: String((err == null ? void 0 : err.message) || err) });
+      onEntry({
+        id,
+        type: "fetch",
+        method,
+        url,
+        startedAt,
+        endedAt,
+        durationMs: endedAt - startedAt,
+        reqBytes,
+        requestHeaders,
+        requestBody,
+        error: String((err == null ? void 0 : err.message) || err)
+      });
       throw err;
     }
   };
@@ -397,19 +476,79 @@ function installAxiosProxy(axios, onEntry) {
   const reqId = /* @__PURE__ */ new WeakMap();
   const reqI = axios.interceptors.request.use((config) => {
     const id = Math.random().toString(36).slice(2);
-    reqId.set(config, { id, startedAt: Date.now() });
+    let requestBody = "";
+    try {
+      if (config.data) {
+        if (typeof config.data === "string") {
+          requestBody = config.data;
+        } else {
+          requestBody = JSON.stringify(config.data, null, 2);
+        }
+      }
+    } catch {
+      requestBody = "[Unable to serialize]";
+    }
+    const requestData = {
+      requestHeaders: config.headers || {},
+      requestBody
+    };
+    reqId.set(config, { id, startedAt: Date.now(), requestData });
     return config;
   });
   const resI = axios.interceptors.response.use(
     (response) => {
-      const meta = reqId.get(response.config) || { id: Math.random().toString(36).slice(2), startedAt: Date.now() };
-      onEntry({ id: meta.id, type: "axios", method: (response.config.method || "GET").toUpperCase(), url: response.config.url, startedAt: meta.startedAt, endedAt: Date.now(), status: response.status, durationMs: Date.now() - meta.startedAt });
+      const meta = reqId.get(response.config) || {
+        id: Math.random().toString(36).slice(2),
+        startedAt: Date.now(),
+        requestData: { requestHeaders: {}, requestBody: "" }
+      };
+      let responseBody = "";
+      try {
+        if (response.data) {
+          if (typeof response.data === "string") {
+            responseBody = response.data;
+          } else {
+            responseBody = JSON.stringify(response.data, null, 2);
+          }
+        }
+      } catch {
+        responseBody = "[Unable to serialize]";
+      }
+      onEntry({
+        id: meta.id,
+        type: "axios",
+        method: (response.config.method || "GET").toUpperCase(),
+        url: response.config.url,
+        startedAt: meta.startedAt,
+        endedAt: Date.now(),
+        status: response.status,
+        durationMs: Date.now() - meta.startedAt,
+        requestHeaders: meta.requestData.requestHeaders,
+        requestBody: meta.requestData.requestBody,
+        responseHeaders: response.headers || {},
+        responseBody
+      });
       return response;
     },
     (error) => {
       const cfg = error.config || {};
-      const meta = reqId.get(cfg) || { id: Math.random().toString(36).slice(2), startedAt: Date.now() };
-      onEntry({ id: meta.id, type: "axios", method: (cfg.method || "GET").toUpperCase(), url: cfg.url, startedAt: meta.startedAt, endedAt: Date.now(), durationMs: Date.now() - meta.startedAt, error: String((error == null ? void 0 : error.message) || error) });
+      const meta = reqId.get(cfg) || {
+        id: Math.random().toString(36).slice(2),
+        startedAt: Date.now(),
+        requestData: { requestHeaders: {}, requestBody: "" }
+      };
+      onEntry({
+        id: meta.id,
+        type: "axios",
+        method: (cfg.method || "GET").toUpperCase(),
+        url: cfg.url,
+        startedAt: meta.startedAt,
+        endedAt: Date.now(),
+        durationMs: Date.now() - meta.startedAt,
+        requestHeaders: meta.requestData.requestHeaders,
+        requestBody: meta.requestData.requestBody,
+        error: String((error == null ? void 0 : error.message) || error)
+      });
       return Promise.reject(error);
     }
   );
@@ -466,26 +605,29 @@ const DebugProvider = ({ children, axios, capacity = 300, enabled = typeof __DEV
   const logBuf = useRef(new RingBuffer(capacity));
   const reqBuf = useRef(new RingBuffer(capacity));
   const [, setTick] = useState(0);
+  const scheduleUpdate = useCallback(() => {
+    setTimeout(() => setTick((t) => t + 1), 0);
+  }, []);
   useEffect(() => {
     if (!enabled) return;
     const restoreConsole = installConsoleProxy((e) => {
       logBuf.current.push(e);
-      setTick((t) => t + 1);
+      scheduleUpdate();
     });
     const restoreFetch = installFetchProxy((e) => {
       reqBuf.current.push(e);
-      setTick((t) => t + 1);
+      scheduleUpdate();
     });
     const restoreAxios = installAxiosProxy(axios, (e) => {
       reqBuf.current.push(e);
-      setTick((t) => t + 1);
+      scheduleUpdate();
     });
     return () => {
       restoreAxios == null ? void 0 : restoreAxios();
       restoreFetch();
       restoreConsole();
     };
-  }, [enabled, axios]);
+  }, [enabled, axios, scheduleUpdate]);
   const jsFps = useFps(enabled);
   const loopLagMs = useEventLoopLag(enabled);
   const device = useMemo(() => ({
@@ -503,11 +645,11 @@ const DebugProvider = ({ children, axios, capacity = 300, enabled = typeof __DEV
     device,
     clearLogs: () => {
       logBuf.current.clear();
-      setTick((t) => t + 1);
+      setTimeout(() => setTick((t) => t + 1), 0);
     },
     clearRequests: () => {
       reqBuf.current.clear();
-      setTick((t) => t + 1);
+      setTimeout(() => setTick((t) => t + 1), 0);
     }
   };
   return /* @__PURE__ */ jsxRuntimeExports.jsx(DebugContext.Provider, { value, children });
@@ -527,18 +669,91 @@ const LogsTab = () => {
           item.level.toUpperCase(),
           ": ",
           item.message.map(String).join(" ")
-        ] })
+        ] }),
+        contentContainerStyle: { paddingBottom: 80 }
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$3.footer, onPress: clearLogs, children: "Clear" })
+    /* @__PURE__ */ jsxRuntimeExports.jsx(TouchableOpacity, { style: styles$3.clearFab, onPress: clearLogs, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$3.clearFabText, children: "🗑️" }) })
   ] });
 };
 const styles$3 = StyleSheet.create({
   row: { padding: 8, fontFamily: Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }) },
   err: { color: "#b00020" },
   warn: { color: "#9c6f00" },
-  footer: { textAlign: "center", padding: 8, color: "#007aff" }
+  clearFab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#ff4444",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4
+  },
+  clearFabText: { fontSize: 20, color: "white" }
 });
+const NetworkRequestItem = ({ item }) => {
+  const [expanded, setExpanded] = useState(false);
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: styles$2.card, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsxs(TouchableOpacity, { onPress: () => setExpanded(!expanded), children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(Text, { style: styles$2.url, children: [
+        item.method,
+        " ",
+        item.url
+      ] }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(Text, { style: styles$2.summary, children: [
+        "Status: ",
+        item.status ?? "—",
+        " | ",
+        item.durationMs ?? "—",
+        "ms | ↑",
+        item.reqBytes ?? 0,
+        "b | ↓",
+        item.resBytes ?? 0,
+        "b"
+      ] }),
+      item.error && /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.error, children: item.error }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(Text, { style: styles$2.expandIcon, children: [
+        expanded ? "▼" : "▶",
+        " ",
+        expanded ? "Hide" : "Show",
+        " Details"
+      ] })
+    ] }),
+    expanded && /* @__PURE__ */ jsxRuntimeExports.jsxs(ScrollView, { style: styles$2.details, nestedScrollEnabled: true, children: [
+      item.requestHeaders && Object.keys(item.requestHeaders).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: styles$2.section, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.sectionTitle, children: "Request Headers:" }),
+        Object.entries(item.requestHeaders).map(([key, value]) => /* @__PURE__ */ jsxRuntimeExports.jsxs(Text, { style: styles$2.headerItem, children: [
+          key,
+          ": ",
+          value
+        ] }, key))
+      ] }),
+      item.requestBody && /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: styles$2.section, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.sectionTitle, children: "Request Body:" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.bodyText, children: item.requestBody })
+      ] }),
+      item.responseHeaders && Object.keys(item.responseHeaders).length > 0 && /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: styles$2.section, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.sectionTitle, children: "Response Headers:" }),
+        Object.entries(item.responseHeaders).map(([key, value]) => /* @__PURE__ */ jsxRuntimeExports.jsxs(Text, { style: styles$2.headerItem, children: [
+          key,
+          ": ",
+          value
+        ] }, key))
+      ] }),
+      item.responseBody && /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: styles$2.section, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.sectionTitle, children: "Response Body:" }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(ScrollView, { style: styles$2.responseBodyContainer, nestedScrollEnabled: true, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.bodyText, children: item.responseBody }) })
+      ] })
+    ] })
+  ] });
+};
 const NetworkTab = () => {
   const { requests, clearRequests } = useDebug();
   return /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: { flex: 1 }, children: [
@@ -547,33 +762,42 @@ const NetworkTab = () => {
       {
         data: [...requests].reverse(),
         keyExtractor: (it) => it.id + String(it.endedAt || ""),
-        renderItem: ({ item }) => /* @__PURE__ */ jsxRuntimeExports.jsxs(View, { style: styles$2.card, children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(Text, { style: styles$2.url, children: [
-            item.method,
-            " ",
-            item.url
-          ] }),
-          /* @__PURE__ */ jsxRuntimeExports.jsxs(Text, { children: [
-            "Status: ",
-            item.status ?? "—",
-            " | ms: ",
-            item.durationMs ?? "—",
-            " | in: ",
-            item.reqBytes ?? 0,
-            " | out: ",
-            item.resBytes ?? 0
-          ] }),
-          item.error && /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: { color: "#b00020" }, children: item.error })
-        ] })
+        renderItem: ({ item }) => /* @__PURE__ */ jsxRuntimeExports.jsx(NetworkRequestItem, { item }),
+        contentContainerStyle: { paddingBottom: 80 }
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.clear, onPress: clearRequests, children: "Clear" })
+    /* @__PURE__ */ jsxRuntimeExports.jsx(TouchableOpacity, { style: styles$2.clearFab, onPress: clearRequests, children: /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles$2.clearFabText, children: "🗑️" }) })
   ] });
 };
 const styles$2 = StyleSheet.create({
-  card: { padding: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  url: { fontWeight: "600" },
-  clear: { textAlign: "center", padding: 8, color: "#007aff" }
+  card: { padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: "#e0e0e0" },
+  url: { fontWeight: "600", fontSize: 14, marginBottom: 4 },
+  summary: { fontSize: 12, color: "#666", marginBottom: 4 },
+  error: { color: "#b00020", fontSize: 12, marginBottom: 4 },
+  expandIcon: { fontSize: 12, color: "#007aff", marginTop: 4 },
+  details: { marginTop: 8, maxHeight: 300, backgroundColor: "#f8f8f8", borderRadius: 4, padding: 8 },
+  section: { marginBottom: 12 },
+  sectionTitle: { fontWeight: "600", fontSize: 13, marginBottom: 4, color: "#333" },
+  headerItem: { fontSize: 11, fontFamily: "monospace", marginBottom: 2, color: "#555" },
+  bodyText: { fontSize: 11, fontFamily: "monospace", color: "#333", lineHeight: 14 },
+  responseBodyContainer: { maxHeight: 120 },
+  clearFab: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#ff4444",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4
+  },
+  clearFabText: { fontSize: 20, color: "white" }
 });
 const PerfTab = () => {
   const { jsFps, loopLagMs } = useDebug();
@@ -654,6 +878,7 @@ const styles = StyleSheet.create({
 export {
   DebugOverlay,
   DebugProvider,
+  installEarlyConsoleProxy,
   useDebug
 };
 //# sourceMappingURL=index.js.map
