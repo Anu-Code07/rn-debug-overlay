@@ -13,13 +13,13 @@ In-app debug overlay for React Native (iOS, Android, Web) with zero native modul
 ## 📦 Installation
 
 ```bash
-npm install @anurag/rn-debug-overlay
+npm install rn-debug-overlay
 ```
 
 ## 🚀 Usage
 
 ```tsx
-import { DebugProvider, DebugOverlay, installEarlyConsoleProxy } from '@anurag/rn-debug-overlay';
+import { DebugProvider, DebugOverlay, installEarlyConsoleProxy } from 'rn-debug-overlay';
 
 // Optional: Capture logs from app startup
 installEarlyConsoleProxy();
