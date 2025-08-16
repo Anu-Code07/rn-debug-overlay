@@ -26,7 +26,7 @@ installEarlyConsoleProxy();
 
 export default function App() {
   return (
-    <DebugProvider enabled={__DEV__} axios={axios}>
+    <DebugProvider enabled={__DEV__} axios={axios}> // provide the axiosInstace you are using for networklogs (optional, defaults to fetch)
       <YourAppContent />
       <DebugOverlay />
     </DebugProvider>
