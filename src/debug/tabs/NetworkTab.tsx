@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useDebug } from '../DebugProvider';
 import { NetworkEntry } from '../proxies/fetchProxy';
 
@@ -65,13 +65,24 @@ const NetworkRequestItem = ({ item }: { item: NetworkEntry }) => {
 export const NetworkTab = () => {
   const { requests, clearRequests } = useDebug();
   return (
-    <View style={{ flex:1 }}>
-      <FlatList
-        data={[...requests].reverse()}
-        keyExtractor={(it: NetworkEntry) => it.id + String(it.endedAt || '')}
-        renderItem={({ item }: { item: NetworkEntry }) => <NetworkRequestItem item={item} />}
-        contentContainerStyle={{ paddingBottom: 80 }}
-      />
+    <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerText}>Network Requests ({requests.length})</Text>
+      </View>
+      {requests.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No network requests yet</Text>
+          <Text style={styles.emptySubText}>Network calls will appear here</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={[...requests].reverse()}
+          keyExtractor={(it: NetworkEntry) => it.id + String(it.endedAt || '')}
+          renderItem={({ item }: { item: NetworkEntry }) => <NetworkRequestItem item={item} />}
+          contentContainerStyle={{ paddingBottom: Platform.OS === 'ios' ? 140 : 80 }}
+          style={{ flex: 1 }}
+        />
+      )}
       <TouchableOpacity style={styles.clearFab} onPress={clearRequests}>
         <Text style={styles.clearFabText}>🗑️</Text>
       </TouchableOpacity>
@@ -80,6 +91,38 @@ export const NetworkTab = () => {
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  headerContainer: {
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  headerText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
+  },
   card: { padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#e0e0e0' },
   url: { fontWeight: '600', fontSize: 14, marginBottom: 4 },
   summary: { fontSize: 12, color: '#666', marginBottom: 4 },
@@ -93,7 +136,7 @@ const styles = StyleSheet.create({
   responseBodyContainer: { maxHeight: 120 },
   clearFab: { 
     position: 'absolute', 
-    bottom: 20, 
+    bottom: Platform.OS === 'ios' ? 100 : 20, 
     right: 20, 
     width: 56, 
     height: 56, 
@@ -103,9 +146,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    zIndex: 1000,
   },
   clearFabText: { fontSize: 20, color: 'white' }
 });

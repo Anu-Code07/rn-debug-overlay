@@ -658,8 +658,16 @@ const DebugProvider = ({ children, axios, capacity = 300, enabled = typeof __DEV
 };
 const LogsTab = () => {
   const { logs, clearLogs } = useDebug();
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: { flex: 1 }, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles$3.container, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.View, { style: styles$3.header, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.Text, { style: styles$3.headerText, children: [
+      "Console Logs (",
+      logs.length,
+      ")"
+    ] }) }),
+    logs.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles$3.emptyState, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles$3.emptyText, children: "No logs yet" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles$3.emptySubText, children: "Console messages will appear here" })
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
       reactNative.FlatList,
       {
         data: logs,
@@ -672,19 +680,60 @@ const LogsTab = () => {
           ": ",
           item.message.map(String).join(" ")
         ] }),
-        contentContainerStyle: { paddingBottom: 80 }
+        contentContainerStyle: { paddingBottom: reactNative.Platform.OS === "ios" ? 140 : 80 },
+        style: styles$3.list
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { style: styles$3.clearFab, onPress: clearLogs, children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles$3.clearFabText, children: "🗑️" }) })
   ] });
 };
 const styles$3 = reactNative.StyleSheet.create({
-  row: { padding: 8, fontFamily: reactNative.Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }) },
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff"
+  },
+  header: {
+    padding: 12,
+    backgroundColor: "#f8f9fa",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef"
+  },
+  headerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333"
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "500"
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: "#999",
+    marginTop: 8,
+    textAlign: "center"
+  },
+  list: {
+    flex: 1
+  },
+  row: {
+    padding: 12,
+    borderBottomWidth: reactNative.StyleSheet.hairlineWidth,
+    borderBottomColor: "#f0f0f0",
+    fontFamily: reactNative.Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" })
+  },
   err: { color: "#b00020" },
   warn: { color: "#9c6f00" },
   clearFab: {
     position: "absolute",
-    bottom: 20,
+    bottom: reactNative.Platform.OS === "ios" ? 100 : 20,
     right: 20,
     width: 56,
     height: 56,
@@ -694,9 +743,10 @@ const styles$3 = reactNative.StyleSheet.create({
     alignItems: "center",
     elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    zIndex: 1e3
   },
   clearFabText: { fontSize: 20, color: "white" }
 });
@@ -758,20 +808,61 @@ const NetworkRequestItem = ({ item }) => {
 };
 const NetworkTab = () => {
   const { requests, clearRequests } = useDebug();
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: { flex: 1 }, children: [
-    /* @__PURE__ */ jsxRuntimeExports.jsx(
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles$2.container, children: [
+    /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.View, { style: styles$2.headerContainer, children: /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.Text, { style: styles$2.headerText, children: [
+      "Network Requests (",
+      requests.length,
+      ")"
+    ] }) }),
+    requests.length === 0 ? /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles$2.emptyContainer, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles$2.emptyText, children: "No network requests yet" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles$2.emptySubText, children: "Network calls will appear here" })
+    ] }) : /* @__PURE__ */ jsxRuntimeExports.jsx(
       reactNative.FlatList,
       {
         data: [...requests].reverse(),
         keyExtractor: (it) => it.id + String(it.endedAt || ""),
         renderItem: ({ item }) => /* @__PURE__ */ jsxRuntimeExports.jsx(NetworkRequestItem, { item }),
-        contentContainerStyle: { paddingBottom: 80 }
+        contentContainerStyle: { paddingBottom: reactNative.Platform.OS === "ios" ? 140 : 80 },
+        style: { flex: 1 }
       }
     ),
     /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { style: styles$2.clearFab, onPress: clearRequests, children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles$2.clearFabText, children: "🗑️" }) })
   ] });
 };
 const styles$2 = reactNative.StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff"
+  },
+  headerContainer: {
+    padding: 12,
+    backgroundColor: "#f8f9fa",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e9ecef"
+  },
+  headerText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333"
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#666",
+    fontWeight: "500"
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: "#999",
+    marginTop: 8,
+    textAlign: "center"
+  },
   card: { padding: 12, borderBottomWidth: reactNative.StyleSheet.hairlineWidth, borderColor: "#e0e0e0" },
   url: { fontWeight: "600", fontSize: 14, marginBottom: 4 },
   summary: { fontSize: 12, color: "#666", marginBottom: 4 },
@@ -785,7 +876,7 @@ const styles$2 = reactNative.StyleSheet.create({
   responseBodyContainer: { maxHeight: 120 },
   clearFab: {
     position: "absolute",
-    bottom: 20,
+    bottom: reactNative.Platform.OS === "ios" ? 100 : 20,
     right: 20,
     width: 56,
     height: 56,
@@ -795,9 +886,10 @@ const styles$2 = reactNative.StyleSheet.create({
     alignItems: "center",
     elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    zIndex: 1e3
   },
   clearFabText: { fontSize: 20, color: "white" }
 });
@@ -837,32 +929,44 @@ const DebugOverlay = () => {
     return null;
   }
   const [open, setOpen] = require$$0.useState(false);
-  const [position, setPosition] = require$$0.useState({ x: 20, y: 100 });
+  const { width: screenWidth, height: screenHeight } = reactNative.Dimensions.get("window");
+  const [position, setPosition] = require$$0.useState({
+    x: 20,
+    y: reactNative.Platform.OS === "ios" ? screenHeight > 800 ? 60 : 40 : 80
+  });
   const isDragging = require$$0.useRef(false);
   const dragStartTime = require$$0.useRef(0);
-  const startPosition = require$$0.useRef({ x: 20, y: 100 });
-  const { width: screenWidth, height: screenHeight } = reactNative.Dimensions.get("window");
+  const startPosition = require$$0.useRef({
+    x: 20,
+    y: reactNative.Platform.OS === "ios" ? screenHeight > 800 ? 60 : 40 : 80
+  });
   const fabSize = 56;
   const pan = require$$0.useRef(
     reactNative.PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        const threshold = reactNative.Platform.OS === "android" ? 3 : 5;
+        return Math.abs(gestureState.dx) > threshold || Math.abs(gestureState.dy) > threshold;
+      },
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponderCapture: () => false,
       onPanResponderGrant: () => {
         dragStartTime.current = Date.now();
         isDragging.current = false;
         startPosition.current = { x: position.x, y: position.y };
       },
       onPanResponderMove: (_, gestureState) => {
-        if (Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5) {
+        const threshold = reactNative.Platform.OS === "android" ? 3 : 5;
+        if (Math.abs(gestureState.dx) > threshold || Math.abs(gestureState.dy) > threshold) {
           isDragging.current = true;
         }
         if (isDragging.current) {
           const newX = startPosition.current.x + gestureState.dx;
           const newY = startPosition.current.y + gestureState.dy;
           const maxX = screenWidth - fabSize - 10;
-          const maxY = screenHeight - fabSize - 80;
+          const maxY = screenHeight - fabSize - (reactNative.Platform.OS === "android" ? 100 : 80);
           const minX = 10;
-          const minY = 40;
+          const minY = reactNative.Platform.OS === "android" ? 50 : 60;
           const constrainedX = Math.max(minX, Math.min(maxX, newX));
           const constrainedY = Math.max(minY, Math.min(maxY, newY));
           setPosition({ x: constrainedX, y: constrainedY });
@@ -871,7 +975,9 @@ const DebugOverlay = () => {
       onPanResponderRelease: (_, gestureState) => {
         const dragDuration = Date.now() - dragStartTime.current;
         const dragDistance = Math.sqrt(gestureState.dx ** 2 + gestureState.dy ** 2);
-        if (dragDuration < 200 && dragDistance < 10) {
+        const tapThreshold = reactNative.Platform.OS === "android" ? 15 : 10;
+        const tapDuration = reactNative.Platform.OS === "android" ? 300 : 200;
+        if (dragDuration < tapDuration && dragDistance < tapThreshold) {
           isDragging.current = false;
           setOpen(true);
         } else {
@@ -897,7 +1003,11 @@ const DebugOverlay = () => {
         children: /* @__PURE__ */ jsxRuntimeExports.jsx(
           reactNative.TouchableOpacity,
           {
-            onPress: () => !isDragging.current && setOpen(true),
+            onPress: () => {
+              if (!isDragging.current) {
+                setOpen(true);
+              }
+            },
             activeOpacity: 0.8,
             style: styles.fabTouchable,
             children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.fabText, children: "⚡" })
@@ -905,12 +1015,30 @@ const DebugOverlay = () => {
         )
       }
     ),
-    /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.Modal, { visible: open, animationType: "slide", onRequestClose: () => setOpen(false), children: [
-      /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.header, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.title, children: "Debug Overlay" }),
-        /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { onPress: () => setOpen(false), children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.close, children: "Close" }) })
-      ] }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(Tabs, {})
+    reactNative.Platform.OS === "ios" ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+      reactNative.Modal,
+      {
+        visible: open,
+        animationType: "slide",
+        onRequestClose: () => setOpen(false),
+        presentationStyle: "pageSheet",
+        children: /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.modalContainer, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.modalHeader, children: [
+            /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.title, children: "Debug Overlay" }),
+            /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { onPress: () => setOpen(false), children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.close, children: "Done" }) })
+          ] }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(Tabs, {})
+        ] })
+      }
+    ) : open && /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.androidFullScreenOverlay, children: [
+      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.StatusBar, { backgroundColor: "#f8f9fa", barStyle: "dark-content" }),
+      /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.androidModalContainer, children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.androidModalHeader, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.title, children: "Debug Overlay" }),
+          /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { onPress: () => setOpen(false), children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.close, children: "✕ Close" }) })
+        ] }),
+        /* @__PURE__ */ jsxRuntimeExports.jsx(Tabs, {})
+      ] })
     ] })
   ] });
 };
@@ -924,33 +1052,62 @@ const Tabs = () => {
     } catch {
     }
   }
-  return /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: { flex: 1 }, children: [
+  const renderTabContent = () => {
+    switch (tab) {
+      case "logs":
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(LogsTab, {});
+      case "net":
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(NetworkTab, {});
+      case "perf":
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(PerfTab, {});
+      case "device":
+        return /* @__PURE__ */ jsxRuntimeExports.jsx(DeviceTab, {});
+      default:
+        return /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.Text, { style: { padding: 20, color: "#000" }, children: [
+          "Unknown tab: ",
+          tab
+        ] });
+    }
+  };
+  return /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.tabsContainer, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs(reactNative.View, { style: styles.tabbar, children: [
-      ["logs", "net", "perf", "device"].map((t) => /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { onPress: () => setTab(t), style: [styles.tab, tab === t && styles.activeTab], children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { children: t.toUpperCase() }) }, t)),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.View, { style: { flex: 1 } }),
-      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { onPress: exportAll, style: styles.export, children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { children: "Export" }) })
+      ["logs", "net", "perf", "device"].map((t) => /* @__PURE__ */ jsxRuntimeExports.jsx(
+        reactNative.TouchableOpacity,
+        {
+          onPress: () => {
+            setTab(t);
+          },
+          style: [styles.tab, tab === t && styles.activeTab],
+          children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: [styles.tabText, tab === t && styles.activeTabText], children: t.toUpperCase() })
+        },
+        t
+      )),
+      /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.TouchableOpacity, { onPress: exportAll, style: styles.export, children: /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.Text, { style: styles.exportText, children: "Export" }) })
     ] }),
-    tab === "logs" && /* @__PURE__ */ jsxRuntimeExports.jsx(LogsTab, {}),
-    tab === "net" && /* @__PURE__ */ jsxRuntimeExports.jsx(NetworkTab, {}),
-    tab === "perf" && /* @__PURE__ */ jsxRuntimeExports.jsx(PerfTab, {}),
-    tab === "device" && /* @__PURE__ */ jsxRuntimeExports.jsx(DeviceTab, {})
+    /* @__PURE__ */ jsxRuntimeExports.jsx(reactNative.View, { style: styles.tabContent, children: renderTabContent() })
   ] });
 };
 const styles = reactNative.StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    width: "100%",
+    height: "100%"
+  },
   fab: {
     position: "absolute",
-    zIndex: 9999,
+    zIndex: 999999,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "rgba(0,0,0,0.85)",
-    elevation: 10,
+    backgroundColor: reactNative.Platform.OS === "android" ? "#FF6B35" : "#007AFF",
+    elevation: reactNative.Platform.OS === "android" ? 20 : 0,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    borderWidth: 2,
-    borderColor: "rgba(255,215,0,0.3)"
+    shadowOffset: { width: 0, height: reactNative.Platform.OS === "ios" ? 8 : 8 },
+    shadowOpacity: reactNative.Platform.OS === "ios" ? 0.8 : 0.8,
+    shadowRadius: reactNative.Platform.OS === "ios" ? 16 : 15,
+    borderWidth: reactNative.Platform.OS === "android" ? 3 : 3,
+    borderColor: reactNative.Platform.OS === "android" ? "#FFFFFF" : "#FFFFFF"
   },
   fabTouchable: {
     width: "100%",
@@ -960,20 +1117,116 @@ const styles = reactNative.StyleSheet.create({
     borderRadius: 28
   },
   fabText: {
-    color: "#FFD700",
+    color: "#FFFFFF",
     fontSize: 24,
     fontWeight: "bold",
     textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2
   },
-  header: { paddingTop: 48, paddingHorizontal: 16, paddingBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: reactNative.StyleSheet.hairlineWidth },
   title: { fontSize: 18, fontWeight: "600" },
-  close: { color: "#007aff" },
-  tabbar: { flexDirection: "row", gap: 8, padding: 8, alignItems: "center", borderBottomWidth: reactNative.StyleSheet.hairlineWidth },
-  tab: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: "#eee" },
-  activeTab: { backgroundColor: "#ddd" },
-  export: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: "#eee" }
+  close: {
+    color: "#007aff",
+    fontSize: 18,
+    fontWeight: "bold"
+  },
+  tabbar: {
+    flexDirection: "row",
+    gap: 4,
+    padding: 8,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+    backgroundColor: "#ffffff",
+    minHeight: 50,
+    flexWrap: "wrap"
+  },
+  tab: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    minWidth: 50,
+    alignItems: "center",
+    flex: 1
+  },
+  activeTab: {
+    backgroundColor: "#007aff",
+    borderColor: "#007aff"
+  },
+  export: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#28a745",
+    borderWidth: 1,
+    borderColor: "#28a745",
+    minWidth: 50,
+    alignItems: "center"
+  },
+  tabText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#333333"
+  },
+  activeTabText: {
+    color: "#ffffff"
+  },
+  exportText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#ffffff"
+  },
+  tabsContainer: {
+    flex: 1,
+    backgroundColor: "#ffffff"
+  },
+  tabContent: {
+    flex: 1,
+    backgroundColor: "#ffffff"
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#ffffff"
+  },
+  modalHeader: {
+    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: reactNative.StyleSheet.hairlineWidth,
+    borderBottomColor: "#e0e0e0",
+    backgroundColor: "#f8f9fa"
+  },
+  androidFullScreenOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 999999,
+    backgroundColor: "#ffffff"
+  },
+  androidModalContainer: {
+    flex: 1,
+    backgroundColor: "#ffffff"
+  },
+  androidModalHeader: {
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: reactNative.StyleSheet.hairlineWidth,
+    borderBottomColor: "#e0e0e0",
+    backgroundColor: "#f8f9fa",
+    elevation: 4
+  }
 });
 exports.DebugOverlay = DebugOverlay;
 exports.DebugProvider = DebugProvider;

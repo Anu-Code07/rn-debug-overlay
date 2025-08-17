@@ -1,6 +1,6 @@
 {
   "name": "rn-debug-overlay",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "In-app debug overlay for React Native (iOS, Android, Web). Logs • Network • Perf • Device • Export — zero native modules.",
   "license": "MIT",
   "author": "Anurag Singh",
