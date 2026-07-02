@@ -1,15 +1,41 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Modal, View, Text, TouchableOpacity, PanResponder, Animated, StyleSheet, Share, Dimensions, Platform, StatusBar } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, PanResponder, StyleSheet, Share, Dimensions, Platform, StatusBar, ViewStyle, TextStyle } from 'react-native';
 import { useDebug } from './DebugProvider';
 import { LogsTab } from './tabs/LogsTab';
 import { NetworkTab } from './tabs/NetworkTab';
 import { PerfTab } from './tabs/PerfTab';
 import { DeviceTab } from './tabs/DeviceTab';
 
+export interface DebugOverlayProps {
+  /** Diameter of the floating action button in pixels. Default: 56 */
+  fabSize?: number;
+  /** Initial screen position of the FAB. Default: top-left area with safe offset */
+  initialPosition?: { x: number; y: number };
+  /** Custom styles merged onto the FAB container */
+  fabStyle?: ViewStyle;
+  /** Custom styles merged onto the FAB icon text */
+  fabTextStyle?: TextStyle;
+  /** Icon/emoji shown inside the FAB. Default: "⚡" */
+  fabIcon?: string;
+}
+
+function getDefaultPosition(screenHeight: number): { x: number; y: number } {
+  return {
+    x: 20,
+    y: Platform.OS === 'ios' ? (screenHeight > 800 ? 60 : 40) : 80,
+  };
+}
+
 // Singleton to prevent multiple overlays
 let overlayInstanceCount = 0;
 
-export const DebugOverlay = () => {
+export const DebugOverlay = ({
+  fabSize = 56,
+  initialPosition,
+  fabStyle,
+  fabTextStyle,
+  fabIcon = '⚡',
+}: DebugOverlayProps = {}) => {
   const [instanceId] = useState(() => ++overlayInstanceCount);
   
   // Prevent multiple instances
@@ -29,76 +55,68 @@ export const DebugOverlay = () => {
   const [open, setOpen] = useState(false);
   
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-  
-  const [position, setPosition] = useState({ 
-    x: 20, 
-    y: Platform.OS === 'ios' ? (screenHeight > 800 ? 60 : 40) : 80 
-  });
+  const defaultPosition = initialPosition ?? getDefaultPosition(screenHeight);
+
+  const positionRef = useRef(defaultPosition);
+  const [position, setPosition] = useState(defaultPosition);
   const isDragging = useRef(false);
   const dragStartTime = useRef(0);
-  const startPosition = useRef({ 
-    x: 20, 
-    y: Platform.OS === 'ios' ? (screenHeight > 800 ? 60 : 40) : 80 
-  });
-  const fabSize = 56;
-  
+  const startPosition = useRef(defaultPosition);
+  const fabSizeRef = useRef(fabSize);
+  fabSizeRef.current = fabSize;
+  const screenRef = useRef({ width: screenWidth, height: screenHeight });
+  screenRef.current = { width: screenWidth, height: screenHeight };
+
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
-        // On Android, be more lenient about movement detection
         const threshold = Platform.OS === 'android' ? 3 : 5;
         return Math.abs(gestureState.dx) > threshold || Math.abs(gestureState.dy) > threshold;
       },
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponderCapture: () => false,
-      
+
       onPanResponderGrant: () => {
         dragStartTime.current = Date.now();
         isDragging.current = false;
-        // Store the starting position when drag begins
-        startPosition.current = { x: position.x, y: position.y };
+        startPosition.current = { ...positionRef.current };
       },
-      
+
       onPanResponderMove: (_, gestureState) => {
-        // Mark as dragging if moved enough - platform-specific threshold
         const threshold = Platform.OS === 'android' ? 3 : 5;
         if (Math.abs(gestureState.dx) > threshold || Math.abs(gestureState.dy) > threshold) {
           isDragging.current = true;
         }
-        
-        // Update position during drag (use start position + gesture delta)
+
         if (isDragging.current) {
           const newX = startPosition.current.x + gestureState.dx;
           const newY = startPosition.current.y + gestureState.dy;
-          
-          // Apply boundaries with platform-specific adjustments
-          const maxX = screenWidth - fabSize - 10;
-          const maxY = screenHeight - fabSize - (Platform.OS === 'android' ? 100 : 80);
+          const size = fabSizeRef.current;
+          const { width, height } = screenRef.current;
+          const maxX = width - size - 10;
+          const maxY = height - size - (Platform.OS === 'android' ? 100 : 80);
           const minX = 10;
           const minY = Platform.OS === 'android' ? 50 : 60;
-          
-          const constrainedX = Math.max(minX, Math.min(maxX, newX));
-          const constrainedY = Math.max(minY, Math.min(maxY, newY));
-          
-          setPosition({ x: constrainedX, y: constrainedY });
+          const next = {
+            x: Math.max(minX, Math.min(maxX, newX)),
+            y: Math.max(minY, Math.min(maxY, newY)),
+          };
+          positionRef.current = next;
+          setPosition(next);
         }
       },
-      
+
       onPanResponderRelease: (_, gestureState) => {
         const dragDuration = Date.now() - dragStartTime.current;
         const dragDistance = Math.sqrt(gestureState.dx ** 2 + gestureState.dy ** 2);
-        
-        // If it was a short duration and small distance, treat as tap
-        // Android may need more lenient tap detection
+
         const tapThreshold = Platform.OS === 'android' ? 15 : 10;
         const tapDuration = Platform.OS === 'android' ? 300 : 200;
         if (dragDuration < tapDuration && dragDistance < tapThreshold) {
           isDragging.current = false;
           setOpen(true);
         } else {
-          // It was a drag, finalize position (already updated in onPanResponderMove)
-          // Reset dragging flag after delay
           setTimeout(() => {
             isDragging.current = false;
           }, 100);
@@ -109,26 +127,30 @@ export const DebugOverlay = () => {
   
   return (
     <>
-      <View 
+      <View
         style={[
-          styles.fab, 
-          { 
+          styles.fab,
+          {
             left: position.x,
             top: position.y,
-          }
-        ]} 
+            width: fabSize,
+            height: fabSize,
+            borderRadius: fabSize / 2,
+          },
+          fabStyle,
+        ]}
         {...pan.panHandlers}
       >
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => {
             if (!isDragging.current) {
               setOpen(true);
             }
-          }} 
+          }}
           activeOpacity={0.8}
-          style={styles.fabTouchable}
+          style={[styles.fabTouchable, { borderRadius: fabSize / 2 }]}
         >
-          <Text style={styles.fabText}>⚡</Text>
+          <Text style={[styles.fabText, fabTextStyle]}>{fabIcon}</Text>
         </TouchableOpacity>
       </View>
       {Platform.OS === 'ios' ? (
