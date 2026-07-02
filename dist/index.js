@@ -912,8 +912,20 @@ const DeviceTab = () => {
     typeof v === "object" ? JSON.stringify(v) : String(v)
   ] }, k)) });
 };
+function getDefaultPosition(screenHeight) {
+  return {
+    x: 20,
+    y: Platform.OS === "ios" ? screenHeight > 800 ? 60 : 40 : 80
+  };
+}
 let overlayInstanceCount = 0;
-const DebugOverlay = () => {
+const DebugOverlay = ({
+  fabSize = 56,
+  initialPosition,
+  fabStyle,
+  fabTextStyle,
+  fabIcon = "⚡"
+} = {}) => {
   const [instanceId] = useState(() => ++overlayInstanceCount);
   useEffect(() => {
     if (overlayInstanceCount > 1) {
@@ -928,17 +940,16 @@ const DebugOverlay = () => {
   }
   const [open, setOpen] = useState(false);
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
-  const [position, setPosition] = useState({
-    x: 20,
-    y: Platform.OS === "ios" ? screenHeight > 800 ? 60 : 40 : 80
-  });
+  const defaultPosition = initialPosition ?? getDefaultPosition(screenHeight);
+  const positionRef = useRef(defaultPosition);
+  const [position, setPosition] = useState(defaultPosition);
   const isDragging = useRef(false);
   const dragStartTime = useRef(0);
-  const startPosition = useRef({
-    x: 20,
-    y: Platform.OS === "ios" ? screenHeight > 800 ? 60 : 40 : 80
-  });
-  const fabSize = 56;
+  const startPosition = useRef(defaultPosition);
+  const fabSizeRef = useRef(fabSize);
+  fabSizeRef.current = fabSize;
+  const screenRef = useRef({ width: screenWidth, height: screenHeight });
+  screenRef.current = { width: screenWidth, height: screenHeight };
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -951,7 +962,7 @@ const DebugOverlay = () => {
       onPanResponderGrant: () => {
         dragStartTime.current = Date.now();
         isDragging.current = false;
-        startPosition.current = { x: position.x, y: position.y };
+        startPosition.current = { ...positionRef.current };
       },
       onPanResponderMove: (_, gestureState) => {
         const threshold = Platform.OS === "android" ? 3 : 5;
@@ -961,13 +972,18 @@ const DebugOverlay = () => {
         if (isDragging.current) {
           const newX = startPosition.current.x + gestureState.dx;
           const newY = startPosition.current.y + gestureState.dy;
-          const maxX = screenWidth - fabSize - 10;
-          const maxY = screenHeight - fabSize - (Platform.OS === "android" ? 100 : 80);
+          const size = fabSizeRef.current;
+          const { width, height } = screenRef.current;
+          const maxX = width - size - 10;
+          const maxY = height - size - (Platform.OS === "android" ? 100 : 80);
           const minX = 10;
           const minY = Platform.OS === "android" ? 50 : 60;
-          const constrainedX = Math.max(minX, Math.min(maxX, newX));
-          const constrainedY = Math.max(minY, Math.min(maxY, newY));
-          setPosition({ x: constrainedX, y: constrainedY });
+          const next = {
+            x: Math.max(minX, Math.min(maxX, newX)),
+            y: Math.max(minY, Math.min(maxY, newY))
+          };
+          positionRef.current = next;
+          setPosition(next);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -994,8 +1010,12 @@ const DebugOverlay = () => {
           styles.fab,
           {
             left: position.x,
-            top: position.y
-          }
+            top: position.y,
+            width: fabSize,
+            height: fabSize,
+            borderRadius: fabSize / 2
+          },
+          fabStyle
         ],
         ...pan.panHandlers,
         children: /* @__PURE__ */ jsxRuntimeExports.jsx(
@@ -1007,8 +1027,8 @@ const DebugOverlay = () => {
               }
             },
             activeOpacity: 0.8,
-            style: styles.fabTouchable,
-            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: styles.fabText, children: "⚡" })
+            style: [styles.fabTouchable, { borderRadius: fabSize / 2 }],
+            children: /* @__PURE__ */ jsxRuntimeExports.jsx(Text, { style: [styles.fabText, fabTextStyle], children: fabIcon })
           }
         )
       }
